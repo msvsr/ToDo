@@ -1,0 +1,223 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "This API is used to do operations on ToDo table in Dynamodb",
+        "version": "2021-06-04T11:09:45Z",
+        "title": "ToDo"
+    },
+    "paths": {
+        "/{user}/todos": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                 {
+                     "name": "user",
+                     "in": "path",
+                     "required": true,
+                     "type": "string"
+                 }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "200 response"
+                    }
+                },
+                "x-amazon-apigateway-integration": {
+                    "httpMethod": "POST",
+                    "credentials": "arn:aws:iam::980367155655:role/api_gateway_dynamodb",
+                    "uri": "arn:aws:apigateway:ap-south-1:dynamodb:action/Scan",
+                    "responses": {
+                        "default": {
+                            "statusCode": "200"
+                        }
+                    },
+                    "requestTemplates": {
+                        "application/json": "{\r\n\"TableName\":\"ToDo\",\r\n\"ProjectionExpression\":\"TodoId,TodoDescription,CompletionStatus\",\r\n\"FilterExpression\":\"userid= :user\",\r\n\"ExpressionAttributeValues\":{\":user\":{\"S\":\"$input.params('user')\"}}}"
+
+                    },
+                    "passthroughBehavior": "when_no_templates",
+                    "type": "aws"
+                }
+            }
+        },
+        "/{user}/todos/{todoid}": {
+            "get": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                 {
+                     "name": "user",
+                     "in": "path",
+                     "required": true,
+                     "type": "string"
+                 },
+                 {
+                     "name": "todoid",
+                     "in": "path",
+                     "required": true,
+                     "type": "string"
+                 }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "200 response"
+                    }
+                },
+                "x-amazon-apigateway-integration": {
+                    "httpMethod": "POST",
+                    "credentials": "arn:aws:iam::980367155655:role/api_gateway_dynamodb",
+                    "uri": "arn:aws:apigateway:ap-south-1:dynamodb:action/GetItem",
+                    "responses": {
+                        "default": {
+                            "statusCode": "200"
+                        }
+                    },
+                    "requestTemplates": {
+                        "application/json": "{\r\n\"TableName\":\"ToDo\",\r\n\"Key\":{\"userid\":{\"S\":\"$input.params('user')\"},\"TodoId\":{\"S\":\"$input.params('todoid')\"}}}"
+
+                    },
+                    "passthroughBehavior": "when_no_templates",
+                    "type": "aws"
+                }
+            },
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                 {
+                     "name": "user",
+                     "in": "path",
+                     "required": true,
+                     "type": "string"
+                 },
+                 {
+                     "name": "todoid",
+                     "in": "path",
+                     "required": true,
+                     "type": "string"
+                 }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "200 response"
+                    }
+                },
+                "x-amazon-apigateway-integration": {
+                    "httpMethod": "POST",
+                    "credentials": "arn:aws:iam::980367155655:role/api_gateway_dynamodb",
+                    "uri": "arn:aws:apigateway:ap-south-1:dynamodb:action/UpdateItem",
+                    "responses": {
+                        "default": {
+                            "statusCode": "200"
+                        }
+                    },
+                    "requestTemplates": {
+                        "application/json": "{\r\n\"TableName\":\"ToDo\",\r\n\"Key\":{\"userid\":{\"S\":\"$input.params('user')\"},\"TodoId\":{\"S\":\"$input.params('todoid')\"}},\r\n\"UpdateExpression\":\"set CompletionStatus= :completionstatus, CompletionDateTime= :completiondatetime\",\r\n\"ExpressionAttributeValues\":{\":completionstatus\":{\"S\":\"$input.path('$.completionstatus')\"},\":completiondatetime\":{\"S\":\"$input.path('completiondatetime')\"}}}"
+
+                    },
+                    "passthroughBehavior": "when_no_templates",
+                    "type": "aws"
+                }
+            },
+            "delete": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                 {
+                     "name": "user",
+                     "in": "path",
+                     "required": true,
+                     "type": "string"
+                 },
+                 {
+                     "name": "todoid",
+                     "in": "path",
+                     "required": true,
+                     "type": "string"
+                 }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "200 response"
+                    }
+                },
+                "x-amazon-apigateway-integration": {
+                    "httpMethod": "POST",
+                    "credentials": "arn:aws:iam::980367155655:role/api_gateway_dynamodb",
+                    "uri": "arn:aws:apigateway:ap-south-1:dynamodb:action/DeleteItem",
+                    "responses": {
+                        "default": {
+                            "statusCode": "200"
+                        }
+                    },
+                    "requestTemplates": {
+                        "application/json": "{\r\n\"TableName\":\"ToDo\",\r\n\"Key\":{\"userid\":{\"S\":\"$input.params('user')\"},\"TodoId\":{\"S\":\"$input.params('todoid')\"}}}"
+
+                    },
+                    "passthroughBehavior": "when_no_templates",
+                    "type": "aws"
+                }
+            },
+            "put": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                 {
+                     "name": "user",
+                     "in": "path",
+                     "required": true,
+                     "type": "string"
+                 },
+                 {
+                     "name": "todoid",
+                     "in": "path",
+                     "required": true,
+                     "type": "string"
+                 }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "200 response"
+                    }
+                },
+                "x-amazon-apigateway-integration": {
+                    "httpMethod": "POST",
+                    "credentials": "arn:aws:iam::980367155655:role/api_gateway_dynamodb",
+                    "uri": "arn:aws:apigateway:ap-south-1:dynamodb:action/PutItem",
+                    "responses": {
+                        "default": {
+                            "statusCode": "200"
+                        }
+                    },
+                    "requestTemplates": {
+                        "application/json": "{\r\n\"TableName\":\"ToDo\",\r\n\"Item\":{\"userid\":{\"S\":\"$input.params('user')\"},\"TodoId\":{\"S\":\"$input.params('todoid')\"},\"TodoDescription\":{\"S\":\"$input.path('tododescription')\"},\"CompletionStatus\":{\"S\":\"$input.path('completionstatus')\"},\"CreationDateTime\":{\"S\":\"$input.path('creationdatetime')\"}}}"
+
+                    },
+                    "passthroughBehavior": "when_no_templates",
+                    "type": "aws"
+                }
+            }
+        }
+    }
+}
