@@ -1,0 +1,10 @@
+
+{% if todo_list %}
+    <ul>
+    {% for todo in todo_list %}
+        <li>{{ todo.TodoDescription }} --  {{ todo.CompletionStatus }} -- <a href="{% url 'ToDoApp:detail' todo.TodoId %}">view</a> -- <a href="{% url 'ToDoApp:delete' todo.TodoId %}">Delete</a></li>
+    {% endfor %}
+    </ul>
+{% else %}
+    <p>There are no ToDos in your list. Please add new one</p>
+{% endif %}

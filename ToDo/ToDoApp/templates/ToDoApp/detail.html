@@ -1,0 +1,11 @@
+
+
+<ul>
+    <li>{{ todo.TodoDescription }}</li>
+    <li>Creation Time: {{ todo.CreationDateTime }}</li>
+    {% if todo.CompletionDateTime %}
+    <li>Completion Date: {{ todo.CompletionDateTime }}</li>
+    {% endif %}
+    <li>Completion Status: {{ todo.CompletionStatus }}</li>
+    <li><a href="{% url 'ToDoApp:delete' todo.TodoId %}">Delete</a></li>
+</ul>
