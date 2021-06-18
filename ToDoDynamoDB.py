@@ -46,3 +46,15 @@ table_creation_params = {
 }
 
 create_table(table_creation_params)
+"""
+Attributes:
+
+All are strings:
+userid
+TodoId
+TodoDescription
+CompletionStatus
+CompletionDateTime
+CreationDateTime
+
+"""
