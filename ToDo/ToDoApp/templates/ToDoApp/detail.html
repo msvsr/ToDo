@@ -1,11 +1,24 @@
 
 
 <ul>
-    <li>{{ todo.TodoDescription }}</li>
-    <li>Creation Time: {{ todo.CreationDateTime }}</li>
+    <li><a href="{% url 'ToDoApp:todos' %}">Back</a></li>
+    <li>
+        <form action="{% url 'ToDoApp:update' todo.TodoId %}"  method="post">
+                {% csrf_token %}
+                {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+            {% if todo.CompletionStatus == 'Y' %}
+                <input type="checkbox" onchange="this.form.submit()" name="completionstatus" checked>
+                <strike> {{ todo.TodoDescription }} </strike>
+            {% else %}
+                <input type="checkbox" onchange="this.form.submit()" name="completionstatus">
+                {{ todo.TodoDescription }}
+            {% endif %}
+            <input type="hidden" name="detailform" value="Yes">
+        </form>
+    </li>
+    <li>Creation Date Time: {{ todo.CreationDateTime }}</li>
     {% if todo.CompletionDateTime %}
-    <li>Completion Date: {{ todo.CompletionDateTime }}</li>
+    <li>Completed Date Time: {{ todo.CompletionDateTime }}</li>
     {% endif %}
-    <li>Completion Status: {{ todo.CompletionStatus }}</li>
     <li><a href="{% url 'ToDoApp:delete' todo.TodoId %}">Delete</a></li>
 </ul>

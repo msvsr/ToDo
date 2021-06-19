@@ -1,8 +1,29 @@
-
+<a href="{% url 'ToDoApp:signup' %}">signup</a>
+<form action="{% url 'ToDoApp:create' %}" method="post">
+{% csrf_token %}
+    {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+    <input type="text" name="description">
+    <input type="submit" value="Submit">
+</form>
 {% if todo_list %}
     <ul>
     {% for todo in todo_list %}
-        <li>{{ todo.TodoDescription }} --  {{ todo.CompletionStatus }} -- <a href="{% url 'ToDoApp:detail' todo.TodoId %}">view</a> -- <a href="{% url 'ToDoApp:delete' todo.TodoId %}">Delete</a></li>
+        <li>
+            <form action="{% url 'ToDoApp:update' todo.TodoId %}" method="post">
+                {% csrf_token %}
+                {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+                <input type="hidden" name="todosform" value="Yes">
+            {% if todo.CompletionStatus == 'Y' %}
+                <input type="checkbox" onchange="this.form.submit()" name="completionstatus" checked>
+                <strike> {{ todo.TodoDescription }} </strike>
+            {% else %}
+                <input type="checkbox" onchange="this.form.submit()" name="completionstatus">
+                {{ todo.TodoDescription }}
+            {% endif %}
+            -- <a href="{% url 'ToDoApp:detail' todo.TodoId %}">view</a> -- <a href="{% url 'ToDoApp:delete' todo.TodoId %}">Delete</a>
+            </form>
+        </li>
+
     {% endfor %}
     </ul>
 {% else %}

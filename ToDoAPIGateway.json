@@ -37,7 +37,7 @@
                         }
                     },
                     "requestTemplates": {
-                        "application/json": "{\r\n\"TableName\":\"ToDo\",\r\n\"ProjectionExpression\":\"TodoId,TodoDescription,CompletionStatus\",\r\n\"FilterExpression\":\"userid= :user\",\r\n\"ExpressionAttributeValues\":{\":user\":{\"S\":\"$input.params('user')\"}}}"
+                        "application/json": "{\r\n\"TableName\":\"ToDo\",\r\n\"FilterExpression\":\"userid= :user\",\r\n\"ExpressionAttributeValues\":{\":user\":{\"S\":\"$input.params('user')\"}}}"
 
                     },
                     "passthroughBehavior": "when_no_templates",

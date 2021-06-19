@@ -1,0 +1,8 @@
+<form action="{% url 'ToDoApp:code' user %}" method="post">
+{% csrf_token %}
+    {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+    Please verify your email {{ user }}
+    Enter verification code: <input type="text" name="code"><br>
+    <input type="submit" value="Submit">
+</form>
+<a href="{% url 'ToDoApp:resendcode' user %}">Resend Verification code</a>
