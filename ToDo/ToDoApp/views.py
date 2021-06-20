@@ -58,37 +58,50 @@ def deletecookie(request):
 
 
 def todos(request):
-    username = getcookie(request)
-    if not username:
+    cookiedetails = getcookie(request)
+    if not cookiedetails:
         return render(request, 'ToDoApp/signin.html')
-    response = requests.get('https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/msvsr/todos')
+    headers = {"Authorization": cookiedetails["id_token"]}
+    username = cookiedetails["email"]
+    response = requests.get('https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/{}/todos'.format(username), headers=headers)
+    message=response.json().get("message")
+    if message == "Unauthorized":
+        pass
     todo_list = [convert_to_python_format(item.items()) for item in response.json().get('Items')]
     todo_list.sort(key=lambda x: (x["CompletionStatus"], datetime.strptime(x["CreationDateTime"], '%m/%d/%Y %H:%M:%S')))
     return render(request, 'ToDoApp/todos.html', {"todo_list": todo_list, "user": getcookie(request)["name"]})
 
 
 def detail(request, todoid):
-    username = getcookie(request)
-    if not username:
+    cookiedetails = getcookie(request)
+    if not cookiedetails:
         return render(request, 'ToDoApp/signin.html')
-    response = requests.get('https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/msvsr/todos/{}'.format(todoid))
+    headers = {"Authorization": cookiedetails["id_token"]}
+    username = cookiedetails["email"]
+    response = requests.get('https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/{}/todos/{}'.format(username, todoid),
+                            headers=headers)
     todo = convert_to_python_format(response.json().get('Item').items())
     return render(request, 'ToDoApp/detail.html', {"todo": todo})
 
 
 def delete(request, todoid):
-    username = getcookie(request)
-    if not username:
+    cookiedetails = getcookie(request)
+    if not cookiedetails:
         return render(request, 'ToDoApp/signin.html')
+    headers = {"Authorization": cookiedetails["id_token"]}
+    username = cookiedetails["email"]
     response = requests.delete(
-        'https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/msvsr/todos/{}'.format(todoid))
+        'https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/{}/todos/{}'.format(username, todoid),
+        headers=headers)
     return HttpResponseRedirect(reverse('ToDoApp:todos'))
 
 
 def create(request):
-    username = getcookie(request)
-    if not username:
+    cookiedetails = getcookie(request)
+    if not cookiedetails:
         return render(request, 'ToDoApp/signin.html')
+    headers = {"Authorization": cookiedetails["id_token"]}
+    username = cookiedetails["email"]
     now = datetime.now()
     todoid = str(uuid.uuid4())
     data = {
@@ -97,15 +110,17 @@ def create(request):
         "tododescription": request.POST["description"]
     }
     response = requests.put(
-        'https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/msvsr/todos/{}'.format(todoid),
-        json=data)
+        'https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/{}/todos/{}'.format(username, todoid),
+        json=data, headers=headers)
     return HttpResponseRedirect(reverse('ToDoApp:todos'))
 
 
 def update(request, todoid):
-    username = getcookie(request)
-    if not username:
+    cookiedetails = getcookie(request)
+    if not cookiedetails:
         return render(request, 'ToDoApp/signin.html')
+    headers = {"Authorization": cookiedetails["id_token"]}
+    username = cookiedetails["email"]
     now = datetime.now()
     if request.POST.get("completionstatus", False):
         data = {
@@ -118,8 +133,8 @@ def update(request, todoid):
         }
 
     response = requests.post(
-        'https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/msvsr/todos/{}'.format(todoid),
-        json=data)
+        'https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/{}/todos/{}'.format(username, todoid),
+        json=data,headers=headers)
     if request.POST.get("detailform", False):
         return HttpResponseRedirect(reverse('ToDoApp:detail', args=(todoid,)))
     elif request.POST.get("todosform", False):

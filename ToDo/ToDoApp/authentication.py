@@ -241,6 +241,31 @@ def initiate_auth(client, username, password):
         return None, e.__str__()
     return resp, None
 
+start here
+def get_refreshed_tokens(username, refresh_token):
+    client = boto3.client('cognito-idp')
+    secret_hash = get_secret_hash(username)
+    try:
+        resp = client.admin_initiate_auth(
+            UserPoolId=USER_POOL_ID,
+            ClientId=CLIENT_ID,
+            AuthFlow='REFRESH_TOKEN',
+            AuthParameters={
+                'USERNAME': username,
+                'REFRESH_TOKEN':refresh_token,
+                'SECRET_HASH': secret_hash
+            },
+            ClientMetadata={
+                'username': username
+            })
+    except client.exceptions.NotAuthorizedException:
+        return None, "The username or password is incorrect"
+    except client.exceptions.UserNotConfirmedException:
+        return None, "User is not confirmed"
+    except Exception as e:
+        return None, e.__str__()
+    return resp, None
+
 
 def signin(event, context=None):
     client = boto3.client('cognito-idp')
