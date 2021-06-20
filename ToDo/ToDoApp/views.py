@@ -1,11 +1,10 @@
 from django.shortcuts import render, HttpResponseRedirect, reverse
 import requests
-from boto3.dynamodb.types import TypeDeserializer
+from boto3.dynamodb.types import TypeDeserializer, TypeSerializer
 import uuid
 from datetime import datetime
 from . import authentication
-
-user_details = {}
+import boto3
 
 
 def convert_to_python_format(data):
@@ -13,29 +12,83 @@ def convert_to_python_format(data):
     return {k: deserializer.deserialize(v) for k, v in data}
 
 
+def convert_to_dynamodb_format(data):
+    serializer = TypeSerializer()
+    return serializer.serialize(data)['M']
+
+
+def setcookie(request, key_value=None):
+    request.set_cookie("usersession", key_value["usersession"])
+    dynamodb = boto3.client("dynamodb")
+    data = {
+        "TableName": "usersession",
+        "Item": convert_to_dynamodb_format(key_value)
+    }
+    dynamodb.put_item(**data)
+    return request
+
+
+def getcookie(request):
+    try:
+        usersession = request.COOKIES["usersession"]
+        dynamodb = boto3.client("dynamodb")
+
+        data = {
+            "TableName": "usersession",
+            "Key": convert_to_dynamodb_format({"usersession": usersession})
+        }
+        response = dynamodb.get_item(**data)
+        return convert_to_python_format(response.get('Item').items())
+    except (KeyError, AttributeError):
+        return None
+
+
+def deletecookie(request):
+    try:
+        usersession = request.COOKIES["usersession"]
+        dynamodb = boto3.client("dynamodb")
+
+        data = {
+            "TableName": "usersession",
+            "Key": convert_to_dynamodb_format({"usersession": usersession})
+        }
+        dynamodb.delete_item(**data)
+    except Exception as e:
+        print(e)
+
+
 def todos(request):
-    username = True
+    username = getcookie(request)
     if not username:
-        return render(request, 'ToDoApp/signup.html')
+        return render(request, 'ToDoApp/signin.html')
     response = requests.get('https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/msvsr/todos')
     todo_list = [convert_to_python_format(item.items()) for item in response.json().get('Items')]
     todo_list.sort(key=lambda x: (x["CompletionStatus"], datetime.strptime(x["CreationDateTime"], '%m/%d/%Y %H:%M:%S')))
-    return render(request, 'ToDoApp/todos.html', {"todo_list": todo_list})
+    return render(request, 'ToDoApp/todos.html', {"todo_list": todo_list, "user": getcookie(request)["name"]})
 
 
 def detail(request, todoid):
+    username = getcookie(request)
+    if not username:
+        return render(request, 'ToDoApp/signin.html')
     response = requests.get('https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/msvsr/todos/{}'.format(todoid))
     todo = convert_to_python_format(response.json().get('Item').items())
     return render(request, 'ToDoApp/detail.html', {"todo": todo})
 
 
 def delete(request, todoid):
+    username = getcookie(request)
+    if not username:
+        return render(request, 'ToDoApp/signin.html')
     response = requests.delete(
         'https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/msvsr/todos/{}'.format(todoid))
     return HttpResponseRedirect(reverse('ToDoApp:todos'))
 
 
 def create(request):
+    username = getcookie(request)
+    if not username:
+        return render(request, 'ToDoApp/signin.html')
     now = datetime.now()
     todoid = str(uuid.uuid4())
     data = {
@@ -50,6 +103,9 @@ def create(request):
 
 
 def update(request, todoid):
+    username = getcookie(request)
+    if not username:
+        return render(request, 'ToDoApp/signin.html')
     now = datetime.now()
     if request.POST.get("completionstatus", False):
         data = {
@@ -70,12 +126,31 @@ def update(request, todoid):
         return HttpResponseRedirect(reverse('ToDoApp:todos'))
 
 
+def signin(request):
+    if request.POST:
+        res = authentication.signin(request.POST)
+        if res["error"] and res["message"] == 'User is not confirmed':
+            return render(request, 'ToDoApp/verification_code.html', {'user': request.POST["email"]})
+        elif res["error"]:
+            return render(request, 'ToDoApp/signin.html', {'error_message': res["message"]})
+        else:
+            response = HttpResponseRedirect(reverse('ToDoApp:todos'))
+            cookie_data = {"usersession": str(uuid.uuid4())}
+            cookie_data.update(**res["data"])
+            response = HttpResponseRedirect(reverse('ToDoApp:todos'))
+            return setcookie(response, cookie_data)
+    return render(request, 'ToDoApp/signin.html')
+
+
 def signup(request):
-    res = authentication.signup(request.POST)
-    if res["error"]:
-        return render(request, 'ToDoApp/signup.html', {'error_message': res["message"]})
+    if request.POST:
+        res = authentication.signup(request.POST)
+        if res["error"]:
+            return render(request, 'ToDoApp/signup.html', {'error_message': res["message"]})
+        else:
+            return render(request, 'ToDoApp/verification_code.html', {'user': request.POST["email"]})
     else:
-        return render(request, 'ToDoApp/verification_code.html', {'user': request.POST["email"]})
+        return render(request, 'ToDoApp/signup.html')
 
 
 def verifycode(request, user):
@@ -92,3 +167,8 @@ def verifycode(request, user):
 def resendverifycode(request, user):
     resend_res = authentication.resend_verification_code({"user": user})
     return HttpResponseRedirect(reverse('ToDoApp:code', args=(user,)))
+
+
+def log_out(request):
+    deletecookie(request)
+    return render(request, 'ToDoApp/signin.html')

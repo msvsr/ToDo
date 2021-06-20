@@ -5,7 +5,9 @@ from . import views
 app_name = 'ToDoApp'
 urlpatterns = [
     path('all', views.todos, name='todos'),
+    path('signin', views.signin, name='signin'),
     path('signup', views.signup, name='signup'),
+    path('logout', views.log_out, name="logout"),
     path('verifycode/<str:user>', views.verifycode, name='code'),
     path('resendverifycode/<str:user>', views.resendverifycode, name='resendcode'),
     path('create', views.create, name='create'),

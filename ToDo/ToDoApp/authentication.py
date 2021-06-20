@@ -147,7 +147,7 @@ def forgot_password(event, context=None):
         return {"error": True,
                 "success": False,
                 "data": None,
-                "message": f"User <{username}> is not confirmed yet"}
+                "message": f"User {username} is not confirmed yet"}
 
     except client.exceptions.CodeMismatchException:
         return {"error": True,
@@ -244,28 +244,32 @@ def initiate_auth(client, username, password):
 
 def signin(event, context=None):
     client = boto3.client('cognito-idp')
-    for field in ["username", "password"]:
+    for field in ["email", "password"]:
         if event.get(field) is None:
             return {"error": True,
                     "success": False,
                     "message": f"{field} is required",
                     "data": None}
-    username, password = event.get("username"), event.get("password")
+    username, password = event.get("email"), event.get("password")
     resp, msg = initiate_auth(client, username, password)
     if msg is not None:
         return {'message': msg,
                 "error": True, "success": False, "data": None}
     if resp.get("AuthenticationResult"):
-        return {'message': "success",
-                "error": False,
-                "success": True,
-                "data": {
+        userdetails = client.get_user(AccessToken=resp["AuthenticationResult"]["AccessToken"])["UserAttributes"]
+        userdetails = {userattribute["Name"]: userattribute["Value"] for userattribute in userdetails}
+        data = {
                     "id_token": resp["AuthenticationResult"]["IdToken"],
                     "refresh_token": resp["AuthenticationResult"]["RefreshToken"],
                     "access_token": resp["AuthenticationResult"]["AccessToken"],
                     "expires_in": resp["AuthenticationResult"]["ExpiresIn"],
                     "token_type": resp["AuthenticationResult"]["TokenType"]
-                }}
+                }
+        data.update(**userdetails)
+        return {'message': "success",
+                "error": False,
+                "success": True,
+                "data": data}
     else:  # this code block is relevant only when MFA is enabled
         return {"error": True,
                 "success": False,

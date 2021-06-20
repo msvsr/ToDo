@@ -1,8 +1,8 @@
-<a href="{% url 'ToDoApp:signup' %}">signup</a>
+Welcome user {{ user }} ---- ---- ---- <a href="{% url 'ToDoApp:logout' %}">Logout</a><br>
 <form action="{% url 'ToDoApp:create' %}" method="post">
 {% csrf_token %}
     {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
-    <input type="text" name="description">
+    <input type="text" name="description" required>
     <input type="submit" value="Submit">
 </form>
 {% if todo_list %}
