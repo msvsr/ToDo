@@ -4,10 +4,77 @@ import hmac
 import hashlib
 import base64
 import json
+from functools import wraps
+from .datahandlers import convert_to_python_format, convert_to_dynamodb_format
+from django.shortcuts import render,HttpResponseRedirect,reverse
+
 
 USER_POOL_ID = 'ap-south-1_8PyMwWLc2'
 CLIENT_ID = '694kesb6nn07juejiuur45l0gv'
 CLIENT_SECRET = '1f9ep3mu9tqctee884707vgrm4bpck4jkgq5uajhq8fmrvfqmcs2'
+
+
+def setcookie(request, key_value=None):
+    request.set_cookie("usersession", key_value["usersession"])
+    dynamodb = boto3.client("dynamodb")
+    data = {
+        "TableName": "usersession",
+        "Item": convert_to_dynamodb_format(key_value)
+    }
+    dynamodb.put_item(**data)
+    return request
+
+
+def getcookie(request):
+    try:
+        usersession = request.COOKIES["usersession"]
+        dynamodb = boto3.client("dynamodb")
+
+        data = {
+            "TableName": "usersession",
+            "Key": convert_to_dynamodb_format({"usersession": usersession})
+        }
+        response = dynamodb.get_item(**data)
+        return convert_to_python_format(response.get('Item').items())
+    except (KeyError, AttributeError):
+        return None
+
+
+def deletecookie(request):
+    try:
+        usersession = request.COOKIES["usersession"]
+        dynamodb = boto3.client("dynamodb")
+
+        data = {
+            "TableName": "usersession",
+            "Key": convert_to_dynamodb_format({"usersession": usersession})
+        }
+        dynamodb.delete_item(**data)
+    except Exception as e:
+        print(e)
+
+
+def get_user(request):
+    cookiedetails = getcookie(request)
+    username = cookiedetails["email"]
+    headers = {"Authorization": cookiedetails["id_token"]}
+    name = cookiedetails["name"]
+    return username, headers, name
+
+
+def login_required(view_function):
+    @wraps(view_function)
+    def decorated_function(*args, **kws):
+        def sign_in():
+            return render(args[0], 'ToDoApp/signin.html', {"error_message": "Please login to continue"})
+        cookiedetails = getcookie(args[0])
+        if not cookiedetails:
+            return sign_in()
+        else:
+            kws["username"], kws["headers"], kws["name"] = get_user(args[0])
+            return view_function(*args, **kws)
+
+    return decorated_function
 
 
 def get_secret_hash(username):
@@ -241,7 +308,7 @@ def initiate_auth(client, username, password):
         return None, e.__str__()
     return resp, None
 
-start here
+
 def get_refreshed_tokens(username, refresh_token):
     client = boto3.client('cognito-idp')
     secret_hash = get_secret_hash(username)
@@ -252,7 +319,7 @@ def get_refreshed_tokens(username, refresh_token):
             AuthFlow='REFRESH_TOKEN',
             AuthParameters={
                 'USERNAME': username,
-                'REFRESH_TOKEN':refresh_token,
+                'REFRESH_TOKEN': refresh_token,
                 'SECRET_HASH': secret_hash
             },
             ClientMetadata={

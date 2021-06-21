@@ -1,126 +1,68 @@
 from django.shortcuts import render, HttpResponseRedirect, reverse
-import requests
-from boto3.dynamodb.types import TypeDeserializer, TypeSerializer
 import uuid
 from datetime import datetime
 from . import authentication
+from . import datahandlers
 import boto3
 
 
-def convert_to_python_format(data):
-    deserializer = TypeDeserializer()
-    return {k: deserializer.deserialize(v) for k, v in data}
+@authentication.login_required
+def todos(request, *args, **kwargs):
+    username, headers, name = kwargs["username"], kwargs["headers"], kwargs["name"]
+    url = 'https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/{}/todos'
+    params = [username]
 
-
-def convert_to_dynamodb_format(data):
-    serializer = TypeSerializer()
-    return serializer.serialize(data)['M']
-
-
-def setcookie(request, key_value=None):
-    request.set_cookie("usersession", key_value["usersession"])
-    dynamodb = boto3.client("dynamodb")
-    data = {
-        "TableName": "usersession",
-        "Item": convert_to_dynamodb_format(key_value)
-    }
-    dynamodb.put_item(**data)
-    return request
-
-
-def getcookie(request):
-    try:
-        usersession = request.COOKIES["usersession"]
-        dynamodb = boto3.client("dynamodb")
-
-        data = {
-            "TableName": "usersession",
-            "Key": convert_to_dynamodb_format({"usersession": usersession})
-        }
-        response = dynamodb.get_item(**data)
-        return convert_to_python_format(response.get('Item').items())
-    except (KeyError, AttributeError):
-        return None
-
-
-def deletecookie(request):
-    try:
-        usersession = request.COOKIES["usersession"]
-        dynamodb = boto3.client("dynamodb")
-
-        data = {
-            "TableName": "usersession",
-            "Key": convert_to_dynamodb_format({"usersession": usersession})
-        }
-        dynamodb.delete_item(**data)
-    except Exception as e:
-        print(e)
-
-
-def todos(request):
-    cookiedetails = getcookie(request)
-    if not cookiedetails:
-        return render(request, 'ToDoApp/signin.html')
-    headers = {"Authorization": cookiedetails["id_token"]}
-    username = cookiedetails["email"]
-    response = requests.get('https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/{}/todos'.format(username), headers=headers)
-    message=response.json().get("message")
-    if message == "Unauthorized":
-        pass
-    todo_list = [convert_to_python_format(item.items()) for item in response.json().get('Items')]
+    todo_list = datahandlers.handle_api_gateway("get", url=url, params=params, headers=headers, get_item='Items')
     todo_list.sort(key=lambda x: (x["CompletionStatus"], datetime.strptime(x["CreationDateTime"], '%m/%d/%Y %H:%M:%S')))
-    return render(request, 'ToDoApp/todos.html', {"todo_list": todo_list, "user": getcookie(request)["name"]})
+
+    return render(request, 'ToDoApp/todos.html', {"todo_list": todo_list, "user": name})
 
 
-def detail(request, todoid):
-    cookiedetails = getcookie(request)
-    if not cookiedetails:
-        return render(request, 'ToDoApp/signin.html')
-    headers = {"Authorization": cookiedetails["id_token"]}
-    username = cookiedetails["email"]
-    response = requests.get('https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/{}/todos/{}'.format(username, todoid),
-                            headers=headers)
-    todo = convert_to_python_format(response.json().get('Item').items())
-    return render(request, 'ToDoApp/detail.html', {"todo": todo})
+@authentication.login_required
+def detail(request, todoid, *args, **kwargs):
+    username, headers, name = kwargs["username"], kwargs["headers"], kwargs["name"]
+    url = 'https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/{}/todos/{}'
+    params = [username, todoid]
+
+    todo = datahandlers.handle_api_gateway("get", url=url, params=params, headers=headers, get_item='Item')
+
+    return render(request, 'ToDoApp/detail.html', {"todo": todo, "user": name})
 
 
-def delete(request, todoid):
-    cookiedetails = getcookie(request)
-    if not cookiedetails:
-        return render(request, 'ToDoApp/signin.html')
-    headers = {"Authorization": cookiedetails["id_token"]}
-    username = cookiedetails["email"]
-    response = requests.delete(
-        'https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/{}/todos/{}'.format(username, todoid),
-        headers=headers)
+@authentication.login_required
+def delete(request, todoid, *args, **kwargs):
+    username, headers, name = kwargs["username"], kwargs["headers"], kwargs["name"]
+    url = 'https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/{}/todos/{}'
+    params = [username, todoid]
+
+    datahandlers.handle_api_gateway("delete", url=url, params=params, headers=headers)
+
     return HttpResponseRedirect(reverse('ToDoApp:todos'))
 
 
-def create(request):
-    cookiedetails = getcookie(request)
-    if not cookiedetails:
-        return render(request, 'ToDoApp/signin.html')
-    headers = {"Authorization": cookiedetails["id_token"]}
-    username = cookiedetails["email"]
-    now = datetime.now()
+@authentication.login_required
+def create(request, *args, **kwargs):
+    username, headers, name = kwargs["username"], kwargs["headers"], kwargs["name"]
+    url = 'https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/{}/todos/{}'
     todoid = str(uuid.uuid4())
+    params = [username, todoid]
+    now = datetime.now()
     data = {
         "completionstatus": "N",
         "creationdatetime": now.strftime("%m/%d/%Y %H:%M:%S"),
         "tododescription": request.POST["description"]
     }
-    response = requests.put(
-        'https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/{}/todos/{}'.format(username, todoid),
-        json=data, headers=headers)
+
+    datahandlers.handle_api_gateway("put", url=url, params=params, data=data, headers=headers)
+
     return HttpResponseRedirect(reverse('ToDoApp:todos'))
 
 
-def update(request, todoid):
-    cookiedetails = getcookie(request)
-    if not cookiedetails:
-        return render(request, 'ToDoApp/signin.html')
-    headers = {"Authorization": cookiedetails["id_token"]}
-    username = cookiedetails["email"]
+@authentication.login_required
+def update(request, todoid, *args, **kwargs):
+    username, headers, name = kwargs["username"], kwargs["headers"], kwargs["name"]
+    url = 'https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/{}/todos/{}'
+    params = [username, todoid]
     now = datetime.now()
     if request.POST.get("completionstatus", False):
         data = {
@@ -132,9 +74,8 @@ def update(request, todoid):
             "completionstatus": "N"
         }
 
-    response = requests.post(
-        'https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/{}/todos/{}'.format(username, todoid),
-        json=data,headers=headers)
+    datahandlers.handle_api_gateway("post", url=url, params=params, data=data, headers=headers)
+
     if request.POST.get("detailform", False):
         return HttpResponseRedirect(reverse('ToDoApp:detail', args=(todoid,)))
     elif request.POST.get("todosform", False):
@@ -153,7 +94,7 @@ def signin(request):
             cookie_data = {"usersession": str(uuid.uuid4())}
             cookie_data.update(**res["data"])
             response = HttpResponseRedirect(reverse('ToDoApp:todos'))
-            return setcookie(response, cookie_data)
+            return authentication.setcookie(response, cookie_data)
     return render(request, 'ToDoApp/signin.html')
 
 
@@ -184,6 +125,7 @@ def resendverifycode(request, user):
     return HttpResponseRedirect(reverse('ToDoApp:code', args=(user,)))
 
 
-def log_out(request):
-    deletecookie(request)
+@authentication.login_required
+def log_out(request, *args, **kwargs):
+    authentication.deletecookie(request)
     return render(request, 'ToDoApp/signin.html')
