@@ -77,6 +77,24 @@ def login_required(view_function):
     return decorated_function
 
 
+def is_user_already_logged_in(view_function):
+    @wraps(view_function)
+    def decorated_function(*args):
+
+        cookiedetails = getcookie(args[0])
+
+        def log_out():
+            return render(args[0], 'ToDoApp/logout.html',
+                          {"mail": cookiedetails["email"], "name": cookiedetails["name"]})
+
+        if cookiedetails:
+            return log_out()
+        else:
+            return view_function(args[0])
+
+    return decorated_function
+
+
 def get_secret_hash(username):
     msg = username + CLIENT_ID
     dig = hmac.new(str(CLIENT_SECRET).encode('utf-8'),

@@ -82,6 +82,7 @@ def update(request, todoid, *args, **kwargs):
         return HttpResponseRedirect(reverse('ToDoApp:todos'))
 
 
+@authentication.is_user_already_logged_in
 def signin(request):
     if request.POST:
         res = authentication.signin(request.POST)
@@ -98,6 +99,7 @@ def signin(request):
     return render(request, 'ToDoApp/signin.html')
 
 
+@authentication.is_user_already_logged_in
 def signup(request):
     if request.POST:
         res = authentication.signup(request.POST)
