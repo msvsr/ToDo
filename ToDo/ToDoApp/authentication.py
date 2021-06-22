@@ -1,12 +1,10 @@
 import boto3
-import botocore.exceptions
 import hmac
 import hashlib
 import base64
-import json
 from functools import wraps
 from .datahandlers import convert_to_python_format, convert_to_dynamodb_format
-from django.shortcuts import render,HttpResponseRedirect,reverse
+from django.shortcuts import HttpResponseRedirect, reverse
 
 
 USER_POOL_ID = 'ap-south-1_8PyMwWLc2'
@@ -16,6 +14,20 @@ CLIENT_SECRET = '1f9ep3mu9tqctee884707vgrm4bpck4jkgq5uajhq8fmrvfqmcs2'
 
 def setcookie(request, key_value=None):
     request.set_cookie("usersession", key_value["usersession"])
+    dynamodb = boto3.client("dynamodb")
+    data = {
+        "TableName": "usersession",
+        "Item": convert_to_dynamodb_format(key_value)
+    }
+    dynamodb.put_item(**data)
+    return request
+
+
+def updatecookie(request, key_value=None):
+    if key_value is None:
+        key_value = {}
+    usersession = request.COOKIES["usersession"]
+    key_value["usersession"] = usersession
     dynamodb = boto3.client("dynamodb")
     data = {
         "TableName": "usersession",
@@ -54,19 +66,31 @@ def deletecookie(request):
         print(e)
 
 
-def get_user(request):
+def get_user(request, refresh_token_only=False):
     cookiedetails = getcookie(request)
+
+    refresh_token = cookiedetails["refresh_token"]
     username = cookiedetails["email"]
     headers = {"Authorization": cookiedetails["id_token"]}
     name = cookiedetails["name"]
+    sub = cookiedetails["sub"]
+
+    if refresh_token_only:
+        return sub, refresh_token
     return username, headers, name
+
+
+def get_refreshed_headers(request):
+    username, refresh_token = get_user(request, refresh_token_only=True)
+    res = get_refreshed_tokens(username, refresh_token)
+    return updatecookie(request, res)
 
 
 def login_required(view_function):
     @wraps(view_function)
     def decorated_function(*args, **kws):
         def sign_in():
-            return render(args[0], 'ToDoApp/signin.html', {"error_message": "Please login to continue"})
+            return HttpResponseRedirect(reverse('ToDoApp:signin'))
         cookiedetails = getcookie(args[0])
         if not cookiedetails:
             return sign_in()
@@ -84,8 +108,7 @@ def is_user_already_logged_in(view_function):
         cookiedetails = getcookie(args[0])
 
         def log_out():
-            return render(args[0], 'ToDoApp/logout.html',
-                          {"mail": cookiedetails["email"], "name": cookiedetails["name"]})
+            return HttpResponseRedirect(reverse('ToDoApp:askforlogout'))
 
         if cookiedetails:
             return log_out()
@@ -104,12 +127,7 @@ def get_secret_hash(username):
 
 
 def signup(event, context=None):
-    for field in ["email", "password", "name"]:
-        if not event.get(field):
-            return {"error": True, "success": False, 'message': f"{field} is not present", "data": None}
-    email = event["email"]
-    password = event['password']
-    name = event["name"]
+    email, password, name = event["email"], event['password'], event["name"]
     client = boto3.client('cognito-idp')
     try:
         resp = client.sign_up(
@@ -234,18 +252,6 @@ def forgot_password(event, context=None):
                 "data": None,
                 "message": f"User {username} is not confirmed yet"}
 
-    except client.exceptions.CodeMismatchException:
-        return {"error": True,
-                "success": False,
-                "data": None,
-                "message": "Invalid Verification code"}
-
-    except client.exceptions.NotAuthorizedException:
-        return {"error": True,
-                "success": False,
-                "data": None,
-                "message": "User is already confirmed"}
-
     except Exception as e:
         return {"error": True,
                 "success": False,
@@ -259,7 +265,7 @@ def forgot_password(event, context=None):
         "data": None}
 
 
-def confirm_forgot_password(event, context):
+def confirm_forgot_password(event, context=None):
     client = boto3.client('cognito-idp')
     try:
         username = event['username']
@@ -334,7 +340,7 @@ def get_refreshed_tokens(username, refresh_token):
         resp = client.admin_initiate_auth(
             UserPoolId=USER_POOL_ID,
             ClientId=CLIENT_ID,
-            AuthFlow='REFRESH_TOKEN',
+            AuthFlow='REFRESH_TOKEN_AUTH',
             AuthParameters={
                 'USERNAME': username,
                 'REFRESH_TOKEN': refresh_token,
@@ -343,39 +349,42 @@ def get_refreshed_tokens(username, refresh_token):
             ClientMetadata={
                 'username': username
             })
+        cookie_data_to_be_stored = get_cookie_data_to_be_stored(client, resp)
+        cookie_data_to_be_stored["refresh_token"] = refresh_token
     except client.exceptions.NotAuthorizedException:
         return None, "The username or password is incorrect"
     except client.exceptions.UserNotConfirmedException:
         return None, "User is not confirmed"
     except Exception as e:
         return None, e.__str__()
-    return resp, None
+    return cookie_data_to_be_stored
+
+
+def get_cookie_data_to_be_stored(client, resp):
+    userdetails = client.get_user(AccessToken=resp["AuthenticationResult"]["AccessToken"])["UserAttributes"]
+    userdetails = {userattribute["Name"]: userattribute["Value"] for userattribute in userdetails}
+    data = {
+        "id_token": resp["AuthenticationResult"]["IdToken"],
+        "access_token": resp["AuthenticationResult"]["AccessToken"],
+        "expires_in": resp["AuthenticationResult"]["ExpiresIn"],
+        "token_type": resp["AuthenticationResult"]["TokenType"]
+    }
+    if resp["AuthenticationResult"].get("RefreshToken"):
+        data["refresh_token"] = resp["AuthenticationResult"]["RefreshToken"]
+    data.update(**userdetails)
+    return data
 
 
 def signin(event, context=None):
     client = boto3.client('cognito-idp')
-    for field in ["email", "password"]:
-        if event.get(field) is None:
-            return {"error": True,
-                    "success": False,
-                    "message": f"{field} is required",
-                    "data": None}
+
     username, password = event.get("email"), event.get("password")
     resp, msg = initiate_auth(client, username, password)
     if msg is not None:
         return {'message': msg,
                 "error": True, "success": False, "data": None}
     if resp.get("AuthenticationResult"):
-        userdetails = client.get_user(AccessToken=resp["AuthenticationResult"]["AccessToken"])["UserAttributes"]
-        userdetails = {userattribute["Name"]: userattribute["Value"] for userattribute in userdetails}
-        data = {
-                    "id_token": resp["AuthenticationResult"]["IdToken"],
-                    "refresh_token": resp["AuthenticationResult"]["RefreshToken"],
-                    "access_token": resp["AuthenticationResult"]["AccessToken"],
-                    "expires_in": resp["AuthenticationResult"]["ExpiresIn"],
-                    "token_type": resp["AuthenticationResult"]["TokenType"]
-                }
-        data.update(**userdetails)
+        data = get_cookie_data_to_be_stored(client, resp)
         return {'message': "success",
                 "error": False,
                 "success": True,
