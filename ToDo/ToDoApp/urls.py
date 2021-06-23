@@ -13,6 +13,7 @@ urlpatterns = [
     path("confirmforgotpassword", views.confirm_forgot_password, name="confirmforgotpassword"),
     path('verifycode/<str:user>', views.verifycode, name='code'),
     path('resendverifycode/<str:user>', views.resendverifycode, name='resendcode'),
+    path('proccedsignin/<str:user>', views.proceedsignin, name='proceedsignin'),
     path('create', views.create, name='create'),
     path('view/<str:todo_id>', views.detail, name='detail'),
     path('delete/<str:todo_id>', views.delete, name='delete'),

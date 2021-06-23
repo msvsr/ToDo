@@ -132,9 +132,14 @@ def verifycode(request, user):
     return render(request, 'ToDoApp/verification_code.html', {'user': user})
 
 
+def proceedsignin(request, user):
+    return render(request, 'ToDoApp/proceedsignin.html', {'user': user})
+
+
 def resendverifycode(request, user):
     resend_res = authentication.resend_verification_code({"user": user})
-    print(resend_res)
+    if resend_res["error"] and resend_res["message"] == 'User is already confirmed':
+        return HttpResponseRedirect(reverse('ToDoApp:proceedsignin', args=(user,)))
     return HttpResponseRedirect(reverse('ToDoApp:code', args=(user,)))
 
 

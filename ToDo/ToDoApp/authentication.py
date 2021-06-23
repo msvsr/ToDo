@@ -45,7 +45,6 @@ def get_new_token_if_expired(request):
     if datetime.datetime.now() > datetime.datetime.strptime(expires_in, "%m/%d/%Y %H:%M:%S"):
         sub_refresh_token = get_cookie(request, ["sub", "refresh_token"])
         refreshed_cookie = get_refreshed_tokens(sub_refresh_token["sub"], sub_refresh_token["refresh_token"])
-        print("printing", refreshed_cookie)
         expiry_time = refreshed_cookie["expires_in"]
         refreshed_cookie["expires_in"] = expiry_time.strftime("%m/%d/%Y %H:%M:%S")
         return refreshed_cookie
@@ -55,7 +54,7 @@ def get_headers(request):
     refreshed_cookies = get_new_token_if_expired(request)
     if refreshed_cookies:
         return True, refreshed_cookies
-    cookies = get_cookie(request, ["email", 'id_token', 'access_token'])
+    cookies = get_cookie(request, ["email", 'id_token'])
     return False, cookies
 
 
@@ -65,7 +64,6 @@ def login_required(view_function):
         def sign_in():
             return HttpResponseRedirect(reverse('ToDoApp:signin'))
         cookiedetails = get_cookie(args[0])
-        print("is_cookie_on",cookiedetails.get('is_cookie_on'))
         if not cookiedetails:
             return sign_in()
         elif not int(cookiedetails.get("is_cookie_on")):
@@ -90,6 +88,7 @@ def is_user_already_logged_in(view_function):
                 return log_out()
             else:
                 return view_function(*args, **kwargs)
+        return view_function(*args, **kwargs)
 
     return decorated_function
 
@@ -185,10 +184,13 @@ def signup_confirmation(event, context=None):
     return {"error": False, "success": True}
 
 
-def resend_verification_code(event, context=None):
+def resend_verification_code(event):
     client = boto3.client('cognito-idp')
     try:
         username = event['user']
+        user_details = client.admin_get_user(Username=username, UserPoolId=USER_POOL_ID)
+        if user_details["UserStatus"] == 'CONFIRMED':
+            return {"error": True, "success": False, "message": "User is already confirmed"}
         response = client.resend_confirmation_code(
             ClientId=CLIENT_ID,
             SecretHash=get_secret_hash(username),
@@ -343,9 +345,7 @@ def get_cookie_data_to_be_stored(client, resp):
     userdetails = {userattribute["Name"]: userattribute["Value"] for userattribute in userdetails}
     data = {
         "id_token": resp["AuthenticationResult"]["IdToken"],
-        "access_token": resp["AuthenticationResult"]["AccessToken"],
         "expires_in": resp["AuthenticationResult"]["ExpiresIn"],
-        "token_type": resp["AuthenticationResult"]["TokenType"]
     }
     if resp["AuthenticationResult"].get("RefreshToken"):
         data["refresh_token"] = resp["AuthenticationResult"]["RefreshToken"]
@@ -371,4 +371,3 @@ def signin(event, context=None):
         return {"error": True,
                 "success": False,
                 "data": None, "message": None}
-

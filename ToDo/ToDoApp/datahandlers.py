@@ -25,15 +25,14 @@ def check_response_for_unauthorized(response):
 
 
 def handle_api_gateway(request, method, url, params=None, data=None, get_item=''):
-    # Setting to corresponding type if the parameters are None
     if data is None:
         data = {}
     if params is None:
         params = []
 
     # Calling appropriate method
-    try:
-        for i in range(6):
+    for i in range(6):
+        try:
             is_expired, cookie_data = authentication.get_headers(request)
             username, headers = cookie_data["email"], {"Authorization": cookie_data["id_token"]}
             url = url.format(username, *params)
@@ -54,11 +53,8 @@ def handle_api_gateway(request, method, url, params=None, data=None, get_item=''
             elif method == "delete":
                 response = requests.delete(url=url, headers=headers)
                 check_response_for_unauthorized(response)
-
             return is_expired, cookie_data, return_data
-        else:
-            raise Exception("Error")
-    except authenticationexceptions.TokenExpired:
-        pass
-    except authenticationexceptions.Unauthorized:
-        pass
+        except authenticationexceptions.TokenExpired:
+            pass
+    else:
+        raise Exception("Internal Server Error")
