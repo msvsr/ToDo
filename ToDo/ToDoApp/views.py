@@ -1,49 +1,59 @@
 from django.shortcuts import render, HttpResponseRedirect, reverse
 import uuid
+import datetime as dt
 from datetime import datetime
 from . import authentication
 from . import datahandlers
 
 
+def update_cookie_if_expired(is_expired, response, cookie_data):
+    if is_expired:
+        return authentication.update_cookie(response, cookie_data)
+    else:
+        return response
+
+
 @authentication.login_required
-def todos(request, **kwargs):
-    name = kwargs["name"]
+def todos(request):
+    name = authentication.get_cookie(request, ["name"])["name"]
     url = 'https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/{}/todos'
 
-    todo_list = datahandlers.handle_api_gateway(request, "get", url=url, get_item='Items')
+    is_expired, cookie_data, todo_list = datahandlers.handle_api_gateway(request, "get", url=url, get_item='Items')
     todo_list.sort(key=lambda x: (x["CompletionStatus"], datetime.strptime(x["CreationDateTime"], '%m/%d/%Y %H:%M:%S')))
 
-    return render(request, 'ToDoApp/todos.html', {"todo_list": todo_list, "user": name})
+    response = render(request, 'ToDoApp/todos.html', {"todo_list": todo_list, "user": name})
+    return update_cookie_if_expired(is_expired, response, cookie_data)
 
 
 @authentication.login_required
-def detail(request, todoid, **kwargs):
-    name = kwargs["name"]
+def detail(request, todo_id):
+    name = authentication.get_cookie(request, ["name"])["name"]
     url = 'https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/{}/todos/{}'
-    params = [todoid]
+    params = [todo_id]
 
-    todo = datahandlers.handle_api_gateway(request, "get", url=url, params=params, get_item='Item')
+    is_expired, cookie_data, todo = datahandlers.handle_api_gateway(request, "get", url=url, params=params,
+                                                                    get_item='Item')
 
-    return render(request, 'ToDoApp/detail.html', {"todo": todo, "user": name})
+    response = render(request, 'ToDoApp/detail.html', {"todo": todo, "user": name})
+    return update_cookie_if_expired(is_expired, response, cookie_data)
 
 
 @authentication.login_required
-def delete(request, todoid, **kwargs):
-    username, headers, name = kwargs["username"], kwargs["headers"], kwargs["name"]
+def delete(request, todo_id):
     url = 'https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/{}/todos/{}'
-    params = [todoid]
+    params = [todo_id]
 
-    datahandlers.handle_api_gateway(request, "delete", url=url, params=params)
+    is_expired, cookie_data, data = datahandlers.handle_api_gateway(request, "delete", url=url, params=params)
 
-    return HttpResponseRedirect(reverse('ToDoApp:todos'))
+    response = HttpResponseRedirect(reverse('ToDoApp:todos'))
+    return update_cookie_if_expired(is_expired, response, cookie_data)
 
 
 @authentication.login_required
-def create(request, **kwargs):
-    name = kwargs["name"]
+def create(request):
     url = 'https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/{}/todos/{}'
-    todoid = str(uuid.uuid4())
-    params = [todoid]
+    todo_id = str(uuid.uuid4())
+    params = [todo_id]
     now = datetime.now()
     data = {
         "completionstatus": "N",
@@ -51,16 +61,16 @@ def create(request, **kwargs):
         "tododescription": request.POST["description"]
     }
 
-    datahandlers.handle_api_gateway(request, "put", url=url, params=params, data=data)
+    is_expired, cookie_data, data = datahandlers.handle_api_gateway(request, "put", url=url, params=params, data=data)
 
-    return HttpResponseRedirect(reverse('ToDoApp:todos'))
+    response = HttpResponseRedirect(reverse('ToDoApp:todos'))
+    return update_cookie_if_expired(is_expired, response, cookie_data)
 
 
 @authentication.login_required
-def update(request, todoid, **kwargs):
-    name = kwargs["name"]
+def update(request, todo_id):
     url = 'https://6w9ezcb22m.execute-api.ap-south-1.amazonaws.com/v1/{}/todos/{}'
-    params = [todoid]
+    params = [todo_id]
     now = datetime.now()
     if request.POST.get("completionstatus", False):
         data = {
@@ -72,12 +82,13 @@ def update(request, todoid, **kwargs):
             "completionstatus": "N"
         }
 
-    datahandlers.handle_api_gateway(request, "post", url=url, params=params, data=data)
-
+    is_expired, cookie_data, data = datahandlers.handle_api_gateway(request, "post", url=url, params=params, data=data)
+    response = ''
     if request.POST.get("detailform", False):
-        return HttpResponseRedirect(reverse('ToDoApp:detail', args=(todoid,)))
+        response = HttpResponseRedirect(reverse('ToDoApp:detail', args=(todo_id,)))
     elif request.POST.get("todosform", False):
-        return HttpResponseRedirect(reverse('ToDoApp:todos'))
+        response = HttpResponseRedirect(reverse('ToDoApp:todos'))
+    return update_cookie_if_expired(is_expired, response, cookie_data)
 
 
 @authentication.is_user_already_logged_in
@@ -89,10 +100,10 @@ def signin(request):
         elif res["error"]:
             return render(request, 'ToDoApp/signin.html', {'error_message': res["message"]})
         else:
-            cookie_data = {"usersession": str(uuid.uuid4())}
-            cookie_data.update(**res["data"])
             response = HttpResponseRedirect(reverse('ToDoApp:todos'))
-            return authentication.setcookie(response, cookie_data)
+            expiry_time = datetime.now() + dt.timedelta(seconds=res["data"]["expires_in"])
+            res["data"]["expires_in"] = expiry_time.strftime("%m/%d/%Y %H:%M:%S")
+            return authentication.set_cookie(response, res["data"])
     return render(request, 'ToDoApp/signin.html')
 
 
@@ -108,21 +119,22 @@ def signup(request):
         return render(request, 'ToDoApp/signup.html')
 
 
-@authentication.login_required
 def verifycode(request, user):
-    data = {"code": request.POST.get("code"), "user": user}
-    res = authentication.signup_confirmation(data)
-    if res["error"]:
-        return render(request, 'ToDoApp/verification_code.html', {'error_message': res["message"],
-                                                                  'user': user
-                                                                  })
-    else:
-        return HttpResponseRedirect(reverse('ToDoApp:todos'))
+    if request.POST:
+        data = {"code": request.POST.get("code"), "user": user}
+        res = authentication.signup_confirmation(data)
+        if res["error"]:
+            return render(request, 'ToDoApp/verification_code.html', {'error_message': res["message"],
+                                                                      'user': user
+                                                                      })
+        else:
+            return HttpResponseRedirect(reverse('ToDoApp:signin'))
+    return render(request, 'ToDoApp/verification_code.html', {'user': user})
 
 
-@authentication.login_required
 def resendverifycode(request, user):
     resend_res = authentication.resend_verification_code({"user": user})
+    print(resend_res)
     return HttpResponseRedirect(reverse('ToDoApp:code', args=(user,)))
 
 
@@ -154,8 +166,8 @@ def confirm_forgot_password(request):
 
 @authentication.login_required
 def log_out(request):
-    authentication.deletecookie(request)
-    return render(request, 'ToDoApp/signin.html')
+    response = HttpResponseRedirect(reverse('ToDoApp:signin'))
+    return authentication.delete_cookie(response)
 
 
 @authentication.login_required

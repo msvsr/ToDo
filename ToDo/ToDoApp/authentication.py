@@ -3,117 +3,93 @@ import hmac
 import hashlib
 import base64
 from functools import wraps
-from .datahandlers import convert_to_python_format, convert_to_dynamodb_format
 from django.shortcuts import HttpResponseRedirect, reverse
-
+import datetime
 
 USER_POOL_ID = 'ap-south-1_8PyMwWLc2'
 CLIENT_ID = '694kesb6nn07juejiuur45l0gv'
 CLIENT_SECRET = '1f9ep3mu9tqctee884707vgrm4bpck4jkgq5uajhq8fmrvfqmcs2'
 
 
-def setcookie(request, key_value=None):
-    request.set_cookie("usersession", key_value["usersession"])
-    dynamodb = boto3.client("dynamodb")
-    data = {
-        "TableName": "usersession",
-        "Item": convert_to_dynamodb_format(key_value)
-    }
-    dynamodb.put_item(**data)
+def set_cookie(request, cookie_data=None):
+    if cookie_data is None:
+        cookie_data = {}
+    for cookie_name in cookie_data:
+        request.set_cookie(cookie_name, cookie_data[cookie_name])
+    request.set_cookie("is_cookie_on", "1")
     return request
 
 
-def updatecookie(request, key_value=None):
-    if key_value is None:
-        key_value = {}
-    usersession = request.COOKIES["usersession"]
-    key_value["usersession"] = usersession
-    dynamodb = boto3.client("dynamodb")
-    data = {
-        "TableName": "usersession",
-        "Item": convert_to_dynamodb_format(key_value)
-    }
-    dynamodb.put_item(**data)
+def get_cookie(request, cookie_names=None):
+    if cookie_names is None:
+        cookie_names = []
+    if not cookie_names:
+        return request.COOKIES
+    cookie_data = {cookie_name: request.COOKIES[cookie_name] for cookie_name in cookie_names}
+    return cookie_data
+
+
+def update_cookie(request, cookie_data=None):
+    if cookie_data is None:
+        cookie_data = {}
+    return set_cookie(request, cookie_data)
+
+
+def delete_cookie(request):
+    request.set_cookie("is_cookie_on", "0")
     return request
 
 
-def getcookie(request):
-    try:
-        usersession = request.COOKIES["usersession"]
-        dynamodb = boto3.client("dynamodb")
-
-        data = {
-            "TableName": "usersession",
-            "Key": convert_to_dynamodb_format({"usersession": usersession})
-        }
-        response = dynamodb.get_item(**data)
-        return convert_to_python_format(response.get('Item').items())
-    except (KeyError, AttributeError):
-        return None
+def get_new_token_if_expired(request):
+    expires_in = get_cookie(request, ['expires_in'])["expires_in"]
+    if datetime.datetime.now() > datetime.datetime.strptime(expires_in, "%m/%d/%Y %H:%M:%S"):
+        sub_refresh_token = get_cookie(request, ["sub", "refresh_token"])
+        refreshed_cookie = get_refreshed_tokens(sub_refresh_token["sub"], sub_refresh_token["refresh_token"])
+        print("printing", refreshed_cookie)
+        expiry_time = refreshed_cookie["expires_in"]
+        refreshed_cookie["expires_in"] = expiry_time.strftime("%m/%d/%Y %H:%M:%S")
+        return refreshed_cookie
 
 
-def deletecookie(request):
-    try:
-        usersession = request.COOKIES["usersession"]
-        dynamodb = boto3.client("dynamodb")
-
-        data = {
-            "TableName": "usersession",
-            "Key": convert_to_dynamodb_format({"usersession": usersession})
-        }
-        dynamodb.delete_item(**data)
-    except Exception as e:
-        print(e)
-
-
-def get_user(request, refresh_token_only=False):
-    cookiedetails = getcookie(request)
-
-    refresh_token = cookiedetails["refresh_token"]
-    username = cookiedetails["email"]
-    headers = {"Authorization": cookiedetails["id_token"]}
-    name = cookiedetails["name"]
-    sub = cookiedetails["sub"]
-
-    if refresh_token_only:
-        return sub, refresh_token
-    return username, headers, name
-
-
-def get_refreshed_headers(request):
-    username, refresh_token = get_user(request, refresh_token_only=True)
-    res = get_refreshed_tokens(username, refresh_token)
-    return updatecookie(request, res)
+def get_headers(request):
+    refreshed_cookies = get_new_token_if_expired(request)
+    if refreshed_cookies:
+        return True, refreshed_cookies
+    cookies = get_cookie(request, ["email", 'id_token', 'access_token'])
+    return False, cookies
 
 
 def login_required(view_function):
     @wraps(view_function)
-    def decorated_function(*args, **kws):
+    def decorated_function(*args, **kwargs):
         def sign_in():
             return HttpResponseRedirect(reverse('ToDoApp:signin'))
-        cookiedetails = getcookie(args[0])
+        cookiedetails = get_cookie(args[0])
+        print("is_cookie_on",cookiedetails.get('is_cookie_on'))
         if not cookiedetails:
             return sign_in()
+        elif not int(cookiedetails.get("is_cookie_on")):
+            return sign_in()
         else:
-            kws["username"], kws["headers"], kws["name"] = get_user(args[0])
-            return view_function(*args, **kws)
+            return view_function(*args, **kwargs)
 
     return decorated_function
 
 
 def is_user_already_logged_in(view_function):
     @wraps(view_function)
-    def decorated_function(*args):
+    def decorated_function(*args, **kwargs):
 
-        cookiedetails = getcookie(args[0])
+        cookiedetails = get_cookie(args[0])
 
         def log_out():
             return HttpResponseRedirect(reverse('ToDoApp:askforlogout'))
 
         if cookiedetails:
-            return log_out()
-        else:
-            return view_function(args[0])
+            if int(cookiedetails.get('is_cookie_on', 0)):
+                return log_out()
+            else:
+                return view_function(*args, **kwargs)
 
     return decorated_function
 
@@ -351,6 +327,8 @@ def get_refreshed_tokens(username, refresh_token):
             })
         cookie_data_to_be_stored = get_cookie_data_to_be_stored(client, resp)
         cookie_data_to_be_stored["refresh_token"] = refresh_token
+        cookie_data_to_be_stored["expires_in"] = \
+            datetime.datetime.now() + datetime.timedelta(seconds=cookie_data_to_be_stored["expires_in"])
     except client.exceptions.NotAuthorizedException:
         return None, "The username or password is incorrect"
     except client.exceptions.UserNotConfirmedException:

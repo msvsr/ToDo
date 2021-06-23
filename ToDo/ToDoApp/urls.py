@@ -14,7 +14,7 @@ urlpatterns = [
     path('verifycode/<str:user>', views.verifycode, name='code'),
     path('resendverifycode/<str:user>', views.resendverifycode, name='resendcode'),
     path('create', views.create, name='create'),
-    path('view/<str:todoid>', views.detail, name='detail'),
-    path('delete/<str:todoid>', views.delete, name='delete'),
-    path('update/<str:todoid>', views.update, name='update')
+    path('view/<str:todo_id>', views.detail, name='detail'),
+    path('delete/<str:todo_id>', views.delete, name='delete'),
+    path('update/<str:todo_id>', views.update, name='update')
 ]
