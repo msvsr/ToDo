@@ -1,3 +1,5 @@
+{% extends "base.html" %}
+{% block content %}
 <ul>
     <li><a href="{% url 'ToDoApp:todos' %}">Back</a></li>
     <li>
@@ -20,3 +22,4 @@
     {% endif %}
     <li><a href="{% url 'ToDoApp:delete' todo.TodoId %}">Delete</a></li>
 </ul>
+{% endblock content %}
