@@ -1,11 +1,11 @@
-{% extends "beforesign.html" %}
+{% extends "beforesignin.html" %}
 {% block content %}
 <form action="{% url 'ToDoApp:code' user %}" method="post">
 {% csrf_token %}
     {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
     Please verify your email {{ user }}
-    Enter verification code: <input type="text" name="code"><br>
-    <input type="submit" value="Submit">
+    <input type="text" name="code" placeholder="Enter verification code" required><br>
+    <input type="submit" value="Submit"><br><br>
 </form>
 <a href="{% url 'ToDoApp:resendcode' user %}">Resend Verification code</a>
 {% endblock content %}

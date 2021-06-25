@@ -3,9 +3,10 @@
 <form action="{% url 'ToDoApp:signin' %}" method="post">
 {% csrf_token %}
     {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
-    Email: <input type="email" name="email" required><br>
-    Password: <input type="password" name="password" required><br>
-    <input type="submit" value="Submit">
+    <input type="email" name="email" placeholder="Email" required><br>
+    <input type="password" name="password" placeholder="Password" required><br><br>
+    <input type="submit" value="Login">
 </form>
-<a href="{% url 'ToDoApp:signup' %}">signup</a> <a href="{% url 'ToDoApp:forgotpassword' %}">Forgot Password</a>
+<br>
+<a href="{% url 'ToDoApp:signup' %}">Signup</a> <a href="{% url 'ToDoApp:forgotpassword' %}">Forgot Password</a>
 {% endblock content %}

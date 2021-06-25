@@ -3,12 +3,25 @@
     <head>
         {% load static %}
         <title>ToDo</title>
-        <link rel="stylesheet" type="text/css" href="{% static 'ToDoApp/style.css' %}">
+        <link rel="stylesheet" type="text/css" href="{% static 'ToDoApp/beforesignin.css' %}">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
     </head>
 
     <body>
-    <header>
-    </header>
-    {% block content %}{% endblock content %}
+    <div align="center">
+        <header>
+            <h1>A Simple To Do List App </h1>
+        </header>
+
+        {% block content %}{% endblock content %}
+    </div>
+    <div id="footer" align="center">
+        <footer>
+        <i class="fa fa-envelope" style="font-size:24px;color:red"></i>msvsr.medapati@outlook.com<br>
+        <i class="fa fa-github" style="font-size:24px;color:red"></i>github.com/msvsr<br>
+        </footer>
+    </div>
     </body>
 </html>

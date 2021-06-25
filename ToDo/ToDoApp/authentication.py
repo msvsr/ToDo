@@ -212,6 +212,8 @@ def forgot_password(event, context=None):
     client = boto3.client('cognito-idp')
     try:
         username = event['username']
+        client.admin_get_user(Username=username, UserPoolId=USER_POOL_ID)
+        username = event['username']
         response = client.forgot_password(
             ClientId=CLIENT_ID,
             SecretHash=get_secret_hash(username),

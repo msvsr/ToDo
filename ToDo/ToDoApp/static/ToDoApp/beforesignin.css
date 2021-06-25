@@ -1,0 +1,58 @@
+input[type=email],input[type=password],input[type=text] {
+  width: 230px;
+  box-sizing: border-box;
+  border-radius: 10px;
+  font-size: 16px;
+  background-color: white;
+  background-position: 10px 10px;
+  background-repeat: no-repeat;
+  padding: 12px 20px 12px 10px;
+  transition: width 0.4s ease-in-out;
+  border: none;
+  border-bottom: 2px solid red;
+
+}
+
+input[type=email]:focus,input[type=password]:focus,input[type=text]:focus {
+  width: 30%;
+  font-size: 16px;
+}
+input[type=submit] {
+  width: 230px;
+  box-sizing: border-box;
+  border: 3px solid #ccc;
+  border-radius: 10px;
+  font-size: 16px;
+  background-color: green;
+  background-position: 10px 10px;
+  background-repeat: no-repeat;
+  padding: 12px 20px 12px 10px;
+  transition: width 0.4s ease-in-out;
+}
+
+input[type=submit]:focus {
+  font-size: 16px;
+}
+a:link, a:visited {
+  background-color: grey;
+  color: white;
+  padding: 14px 25px;
+  text-align: center;
+  text-decoration: none;
+  display: inline-block;
+  border-radius: 10px;
+}
+
+a:hover, a:active {
+  background-color: red;
+  border-radius: 10px;
+ }
+h1 { color: #d54d7b; font-family: "Great Vibes", cursive; font-size: 35px; line-height: 40px; font-weight: normal; margin-bottom: 10px; margin-top: 20px; text-align: center; text-shadow: 0 1px 1px #fff; }
+
+#footer {
+   position:absolute;
+   bottom:0;
+   width:100%;
+   height:60px;   /* Height of the footer */
+   background:#6cf;
+}

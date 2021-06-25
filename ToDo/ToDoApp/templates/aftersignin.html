@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        {% load static %}
+        <title>ToDo</title>
+        <link rel="stylesheet" type="text/css" href="{% static 'ToDoApp/aftersignin.css' %}">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+    </head>
+
+    <body>
+    <div align="center">
+    <header>
+        <h1>{{ user }} To Do List &nbsp&nbsp&nbsp<a href="{% url 'ToDoApp:logout' %}"><i class="fa fa-power-off" style="font-size:24px;color:green"></i></a></h1><br><br>
+    </header>
+    {% block content %}{% endblock content %}
+    </div>
+    </body>
+</html>

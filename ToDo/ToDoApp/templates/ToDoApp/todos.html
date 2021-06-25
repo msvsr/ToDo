@@ -1,33 +1,44 @@
-{% extends "base.html" %}
+{% extends "aftersignin.html" %}
 {% block content %}
-Welcome user {{ user }} ---- ---- ---- <a href="{% url 'ToDoApp:logout' %}">Logout</a><br>
+
 <form action="{% url 'ToDoApp:create' %}" method="post">
 {% csrf_token %}
     {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
-    <input type="text" name="description" required>
-    <input type="submit" value="Submit">
-</form>
+    <input type="text" name="description" placeholder="New To Do" required>
+    <input type="submit" value="Create"><br>
+</form><br>
 {% if todo_list %}
-    <ul>
     {% for todo in todo_list %}
-        <li>
             <form action="{% url 'ToDoApp:update' todo.TodoId %}" method="post">
                 {% csrf_token %}
                 {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
                 <input type="hidden" name="todosform" value="Yes">
-            {% if todo.CompletionStatus == 'Y' %}
-                <input type="checkbox" onchange="this.form.submit()" name="completionstatus" checked>
-                <strike> {{ todo.TodoDescription }} </strike>
-            {% else %}
-                <input type="checkbox" onchange="this.form.submit()" name="completionstatus">
-                {{ todo.TodoDescription }}
-            {% endif %}
-            -- <a href="{% url 'ToDoApp:detail' todo.TodoId %}">view</a> -- <a href="{% url 'ToDoApp:delete' todo.TodoId %}">Delete</a>
-            </form>
-        </li>
+                <table>
+                    <tr>
+                        <td>
+                            <a href="{% url 'ToDoApp:detail' todo.TodoId %}"><i class="fa fa-eye"></i></a>
+                            <a href="{% url 'ToDoApp:delete' todo.TodoId %}"><i class="fa fa-trash"></i></a>
+                            {% if todo.CompletionStatus == 'Y' %}
+                            <label class="switch">
+                            <input type="checkbox" onchange="this.form.submit()" name="completionstatus" checked>
+                                <span class="slider round"></span>
+                            </label>
+                                <strike><span> {{ todo.TodoDescription }}</span> </strike>
+                            {% else %}
+                             <label class="switch">
+                                <input type="checkbox" onchange="this.form.submit()" name="completionstatus" >
+                            <span class="slider round"></span>
+                             </label>
+                            <b>{{ todo.TodoDescription }}</b>
+                            {% endif %}
+                        </td>
 
+                    </tr>
+                </table>
+
+
+            </form>
     {% endfor %}
-    </ul>
 {% else %}
     <p>There are no ToDos in your list. Please add new one</p>
 {% endif %}

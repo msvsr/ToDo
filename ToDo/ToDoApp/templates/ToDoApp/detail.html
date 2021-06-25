@@ -1,25 +1,37 @@
-{% extends "base.html" %}
+{% extends "aftersignin.html" %}
 {% block content %}
-<ul>
-    <li><a href="{% url 'ToDoApp:todos' %}">Back</a></li>
-    <li>
-        <form action="{% url 'ToDoApp:update' todo.TodoId %}"  method="post">
-                {% csrf_token %}
-                {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+<form action="{% url 'ToDoApp:update' todo.TodoId %}"  method="post">
+    {% csrf_token %}
+    {% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+    <input type="hidden" name="detailform" value="Yes">
+    <table>
+        <tr>
+            <td>
+                <a href="{% url 'ToDoApp:todos' %}"><i class="fa fa-arrow-left"></i></a>
+            <a href="{% url 'ToDoApp:delete' todo.TodoId %}"><i class="fa fa-trash"></i></a>
             {% if todo.CompletionStatus == 'Y' %}
-                <input type="checkbox" onchange="this.form.submit()" name="completionstatus" checked>
+                <label class="switch">
+                    <input type="checkbox" onchange="this.form.submit()" name="completionstatus" checked>
+                    <span class="slider round"></span>
+                </label>
                 <strike> {{ todo.TodoDescription }} </strike>
             {% else %}
-                <input type="checkbox" onchange="this.form.submit()" name="completionstatus">
-                {{ todo.TodoDescription }}
+                <label class="switch">
+                    <input type="checkbox" onchange="this.form.submit()" name="completionstatus" checked>
+                    <span class="slider round"></span>
+                </label>
+                <b>{{ todo.TodoDescription }}</b>
             {% endif %}
-            <input type="hidden" name="detailform" value="Yes">
-        </form>
-    </li>
-    <li>Creation Date Time: {{ todo.CreationDateTime }}</li>
-    {% if todo.CompletionDateTime %}
-    <li>Completed Date Time: {{ todo.CompletionDateTime }}</li>
-    {% endif %}
-    <li><a href="{% url 'ToDoApp:delete' todo.TodoId %}">Delete</a></li>
-</ul>
+            </td>
+        </tr>
+        <tr>
+            <td><b>Creation Date Time:</b> {{ todo.CreationDateTime }}</td>
+        </tr>
+        {% if todo.CompletionDateTime %}
+            <tr>
+                <td><b>Completed Date Time:</b> {{ todo.CompletionDateTime }}</td>
+            </tr>
+        {% endif %}
+    </table>
+</form>
 {% endblock content %}
