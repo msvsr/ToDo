@@ -7,8 +7,8 @@ from django.shortcuts import HttpResponseRedirect, reverse
 import datetime
 
 USER_POOL_ID = 'ap-south-1_8PyMwWLc2'
-CLIENT_ID = '694kesb6nn07juejiuur45l0gv'
-CLIENT_SECRET = '1f9ep3mu9tqctee884707vgrm4bpck4jkgq5uajhq8fmrvfqmcs2'
+CLIENT_ID = '694kesb6nn07juejiuur45l0gvx'
+CLIENT_SECRET = '1f9ep3mu9tqctee884707vgrm4bpck4jkgq5uajhq8fmrvfqmcs2x'
 
 
 def set_cookie(request, cookie_data=None):
