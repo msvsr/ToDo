@@ -66,7 +66,7 @@ def login_required(view_function):
         cookiedetails = get_cookie(args[0])
         if not cookiedetails:
             return sign_in()
-        elif not int(cookiedetails.get("is_cookie_on")):
+        elif not int(cookiedetails.get("is_cookie_on", 0)):
             return sign_in()
         else:
             return view_function(*args, **kwargs)
